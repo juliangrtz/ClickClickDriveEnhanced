@@ -1,4 +1,4 @@
-# ClickClickDrive++
+# ClickClickDriveEnhanced
 
 A Violentmonkey userscript that enhances the **ClickClickDrive** learning experience by enabling keyboard shortcuts and video enhancements for faster and more efficient learning.
 

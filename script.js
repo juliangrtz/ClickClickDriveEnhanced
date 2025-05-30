@@ -1,5 +1,5 @@
 // ==UserScript==
-// @name         ClickClickDrive++
+// @name         ClickClickDriveEnhanced
 // @namespace    http://tampermonkey.net/
 // @version      1.0
 // @description  Enhances videos and adds keyboard shortcuts to the ClickClickDrive website.
