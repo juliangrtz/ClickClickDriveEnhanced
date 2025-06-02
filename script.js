@@ -22,6 +22,9 @@
     function handleKeyPress(event) {
         const key = event.key;
         const isTargetURL = window.location.href.startsWith('https://www.clickclickdrive.de/theorie/');
+        const isFinalExam = document.querySelector('main[class^="FinalExamLayout"]');
+
+        if(isFinalExam) return;
 
         if (isTargetURL && key === ' ') {
             event.preventDefault();
