@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ClickClickDriveEnhanced
 // @namespace    http://tampermonkey.net/
-// @version      1.0
+// @version      1.1
 // @description  Enhances videos and adds keyboard shortcuts to the ClickClickDrive website.
 // @match        https://www.clickclickdrive.de/*
 // @grant        none
@@ -11,30 +11,45 @@
     'use strict';
 
     let lastAnswerState = null;
-    let enhancedVideoUrl = null;
+    let lastEnhancedVideoUrl = null;
+
+    const SELECTORS = {
+        playButton: 'button[data-test="QUESTION_VIDEO_PLAY_BUTTON"], .PlayButton-sc-1m0g6ip-0',
+        showAnswersButton: 'button[data-test="QUESTION_SHOW_ANSWERS_BUTTON"]',
+        nextButton: '[data-test="QUESTION_NEXT_BUTTON"]',
+        closeResultsButton: '[data-test="RESULTS_PAGE_CLOSE_BUTTON"]',
+        checkbox: '[data-test="QUESTION_ANSWER_OPTION_CHECKBOX"]',
+        markButton: '.MarkButton__Wrapper-sc-1jns6xg-0',
+        correctAnswer: '[data-answer-type="CORRECT_ANSWER_CHOSEN"], input[style*="color: rgb(81, 227, 174)"]',
+        incorrectAnswer: '[data-answer-type="CORRECT_ANSWER_NOT_CHOSEN"], input[style*="color: rgb(247, 70, 86)"], [data-answer-type="WRONG_ANSWER"]'
+    };
 
     function simulateClick(element) {
-        if (element) {
-            element.click();
-        }
+        element?.click();
+    }
+
+    function isInTheorySection() {
+        return window.location.href.startsWith('https://www.clickclickdrive.de/theorie/');
+    }
+
+    function isInFinalExam() {
+        return Boolean(document.querySelector('main[class^="FinalExamLayout"]'));
     }
 
     function handleKeyPress(event) {
         const key = event.key;
-        const isTargetURL = window.location.href.startsWith('https://www.clickclickdrive.de/theorie/');
-        const isFinalExam = document.querySelector('main[class^="FinalExamLayout"]');
 
-        if(isFinalExam) return;
+        if (isInFinalExam()) return;
 
-        if (isTargetURL && key === ' ') {
+        if (isInTheorySection() && key === ' ') {
             event.preventDefault();
             const buttons = [
-                Array.from(document.querySelectorAll('button')).find(btn => btn.innerHTML.includes("Video abspielen")),  // TODO: Make language-independent
-                document.querySelector('.PlayButton-sc-1m0g6ip-0'),
-                Array.from(document.querySelectorAll('button')).find(btn => btn.innerHTML.includes("Antwortvarianten anzeigen")),  // TODO: Make language-independent
-                document.querySelector('[data-test="QUESTION_NEXT_BUTTON"]'),
-                document.querySelector('[data-test="RESULTS_PAGE_CLOSE_BUTTON"]')
+                document.querySelector(SELECTORS.playButton),
+                document.querySelector(SELECTORS.showAnswersButton),
+                document.querySelector(SELECTORS.nextButton),
+                document.querySelector(SELECTORS.closeResultsButton)
             ];
+
             for (const button of buttons) {
                 if (button && !button.disabled) {
                     simulateClick(button);
@@ -42,8 +57,8 @@
                 }
             }
         } else if (key >= '1' && key <= '3') {
-            const checkboxes = document.querySelectorAll('[data-test="QUESTION_ANSWER_OPTION_CHECKBOX"]');
-            const index = parseInt(key, 10) - 1;
+            const index = parseInt(key) - 1;
+            const checkboxes = document.querySelectorAll(SELECTORS.checkbox);
             if (checkboxes[index]) {
                 simulateClick(checkboxes[index]);
             }
@@ -53,76 +68,64 @@
     }
 
     function markQuestion() {
-        const markButton = document.querySelector('.MarkButton__Wrapper-sc-1jns6xg-0');
-        if (markButton) {
-            markButton.setAttribute('data-waiting', 'true');
-            simulateClick(markButton);
+        const button = document.querySelector(SELECTORS.markButton);
+        if (button) {
+            button.setAttribute('data-waiting', 'true');
+            simulateClick(button);
         }
     }
 
-    function focusInputField() {
-        const inputField = document.querySelector('input');
-        if (inputField) {
-            inputField.focus();
-        }
+    function focusInput() {
+        const input = document.querySelector('input');
+        input?.focus();
     }
 
-    function checkAnswers() {
-        const correctChosen = document.querySelector('[data-answer-type="CORRECT_ANSWER_CHOSEN"], input[style*="color: rgb(81, 227, 174)"]');
-        const correctNotChosen = document.querySelector('[data-answer-type="CORRECT_ANSWER_NOT_CHOSEN"], input[style*="color: rgb(247, 70, 86)"], [data-answer-type="WRONG_ANSWER"]');
+    function autoAdvanceOnCorrect() {
+        const correct = document.querySelector(SELECTORS.correctAnswer);
+        const incorrect = document.querySelector(SELECTORS.incorrectAnswer);
 
-        const currentState = correctChosen && !correctNotChosen ? 'success' : correctNotChosen ? 'error' : null;
+        const currentState = correct && !incorrect ? 'success' : incorrect ? 'error' : null;
 
         if (currentState !== lastAnswerState) {
             lastAnswerState = currentState;
 
             if (currentState === 'success') {
-                simulateClick(document.querySelector('[data-test="QUESTION_NEXT_BUTTON"]'));
+                const nextBtn = document.querySelector(SELECTORS.nextButton);
+                simulateClick(nextBtn);
             }
         }
     }
 
-    function transformURLtoFilename(urlOrFilename) {
-        const lastPart = urlOrFilename.substring(urlOrFilename.lastIndexOf('/') + 1);
-        const cleaned = lastPart
+    function transformFilename(original) {
+        return original
+            .split('/')
+            .pop()
             .toLowerCase()
             .replace('.mp4', '')
-            .replace(/[\.\-]/g, '');
-        return cleaned + 'v1440.mp4';
+            .replace(/[\.\-]/g, '') + 'v1440.mp4';
     }
 
-    function enhanceVideo() {
-        const video = document.querySelector("video");
-        const playVideoBtn = Array.from(document.querySelectorAll('button'))
-            .find(btn => btn.innerHTML.includes("Video abspielen"));
-        if (!video || !playVideoBtn) return;
-
-        simulateClick(Array.from(document.querySelectorAll('button')).find(btn => btn.innerHTML.includes("Video abspielen"))); // TODO: Make language-independent
-        //simulateClick(Array.from(document.querySelectorAll('button')).find(btn => btn.innerHTML.includes("Antwortvarianten anzeigen")));  // TODO: Make language-independent
+    function openEnhancedVideo() {
+        const video = document.querySelector('video');
+        const playBtn = document.querySelector(SELECTORS.playButton);
+        if (!video || !playBtn) return;
 
         const originalUrl = video.src;
-        if (!originalUrl || originalUrl === enhancedVideoUrl) return;
+        if (!originalUrl || originalUrl === lastEnhancedVideoUrl) return;
 
-        // 1.1.02-050-M.mp4 => 1102050mv1440.mp4
-        const lastPart = originalUrl.substring(originalUrl.lastIndexOf('/') + 1);
-        const url = "https://video2.kalaiwa.de/assets/" + transformURLtoFilename(lastPart);
+        lastEnhancedVideoUrl = originalUrl;
+        const filename = transformFilename(originalUrl);
+        const enhancedUrl = `https://video2.kalaiwa.de/assets/${filename}`;
 
-        enhancedVideoUrl = originalUrl;
-        window.open(url, '_blank');
+        window.open(enhancedUrl, '_blank');
     }
 
-    const observer = new MutationObserver((_mutations) => {
-        focusInputField();
-        checkAnswers();
-        enhanceVideo();
+    const observer = new MutationObserver(() => {
+        focusInput();
+        autoAdvanceOnCorrect();
+        openEnhancedVideo();
     });
 
     observer.observe(document.body, { childList: true, subtree: true });
-
     document.addEventListener('keydown', handleKeyPress);
-
-    const parentStyle = document.createElement('style');
-    parentStyle.type = 'text/css';
-    parentStyle.appendChild(document.createTextNode('.List__ListItem-sc-1sexzs7-1-parent { counter-reset: list-item; }'));
-    document.head.appendChild(parentStyle);
 })();
