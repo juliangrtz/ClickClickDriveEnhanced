@@ -14,7 +14,6 @@
     let lastEnhancedVideoUrl = null;
 
     const SELECTORS = {
-        playButton: 'button[data-test="QUESTION_VIDEO_PLAY_BUTTON"], .PlayButton-sc-1m0g6ip-0',
         showAnswersButton: 'button[data-test="QUESTION_SHOW_ANSWERS_BUTTON"]',
         nextButton: '[data-test="QUESTION_NEXT_BUTTON"]',
         closeResultsButton: '[data-test="RESULTS_PAGE_CLOSE_BUTTON"]',
@@ -44,7 +43,6 @@
         if (isInTheorySection() && key === ' ') {
             event.preventDefault();
             const buttons = [
-                document.querySelector(SELECTORS.playButton),
                 document.querySelector(SELECTORS.showAnswersButton),
                 document.querySelector(SELECTORS.nextButton),
                 document.querySelector(SELECTORS.closeResultsButton)
@@ -107,8 +105,9 @@
 
     function openEnhancedVideo() {
         const video = document.querySelector('video');
-        const playBtn = document.querySelector(SELECTORS.playButton);
-        if (!video || !playBtn) return;
+        const playVideoBtn = Array.from(document.querySelectorAll('button'))
+            .find(btn => btn.innerHTML.includes("Video abspielen"));
+        if (!video || !playVideoBtn) return;
 
         const originalUrl = video.src;
         if (!originalUrl || originalUrl === lastEnhancedVideoUrl) return;
